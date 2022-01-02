@@ -4,7 +4,6 @@ const {getJWT} = require("./genjwt.js")
 const fs = require("fs");
 const path = require("path");
 const fetch = require("node-fetch");
-// require('./db/mongoose')
 const readline = require('readline');
 var _ = require('underscore');
 

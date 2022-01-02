@@ -65,7 +65,7 @@ const main = async function() {
             console.log(bankslist)
         })
 
-    const name = await input ("Please Type the Bank name ")
+    const name = await input ("Please Type the Bank name: ")
     BANK_NAME = name
     
     // Start User Authentication

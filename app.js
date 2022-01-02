@@ -48,19 +48,6 @@ const startAuthorizationBody = {
     redirect_url: REDIRECT_URL,    
   }
 
-
-// fetched_data={
-//     accountid:{
-//         numoftransactions:
-//         max_val:
-//         totalval_crdit:
-//         totalvaldebit:
-//     },
-//     accountid:{
-//         ...
-//     }
-
-// }
 var fetched_data=[]
 
 const main = async function() {
@@ -93,36 +80,44 @@ const main = async function() {
     // Autherize User session
     await autherizeUserSess(`${BASE_URL}/sessions`,  {"code":code})
     .then(data => {
-    console.log("session id",data.session_id); // JSON data parsed by `data.json()` call
+    // console.log("session id",data.session_id); // JSON data parsed by `data.json()` call
     session_id=data.session_id
     });
 
     // Get Session Data
     await getSessionData(`${BASE_URL}/sessions/${session_id}`)
       .then(data => {
-      console.log(data.accounts[0]); // JSON data parsed by `data.json()` call
-      accounts_list=data.accounts[0]
+    //   console.log("DATa acounts",data.accounts); // JSON data parsed by `data.json()` call
+      accounts_list=data.accounts
       });
-      await getAccountTransactions(`${BASE_URL}/accounts/${accounts_list}/transactions`)
-            .then(data => {
-            console.log(data); // JSON data parsed by `data.json()` call
-            
 
-            console.log("_______________________________________________________________________")
-            });
-    // for (var acc in accounts_list){
-    //     console.log(accounts_list[acc]);
-    //     // Get Account Transactions
-    //     await getAccountTransactions(`${BASE_URL}/accounts/${accounts_list[acc]}/transactions`)
-    //       .then(data => {
-    //       console.log(data); // JSON data parsed by `data.json()` call
-    //       console.log("_______________________________________________________________________")
-    //       });
+    console.log ("\n")
+    console.log("Summary of operations for each account during the last 30 days")
+    console.log ("\n")
+    console.log (`From ${today} To ${priorDate} Date.`)
 
-    // }
+
+    for (var acc in accounts_list){
+        // console.log("accound id",accounts_list[acc]);
+        // Get Account Transactions
+        await getAccountTransactions(`${BASE_URL}/accounts/${accounts_list[acc]}/transactions`)
+          .then(data => {
+             generateSummary(data,accounts_list[acc])
+        });
+    }
+   
     
+   
 
+    for (var ind in fetched_data){
 
+        console.log("\n\n")
+        console.log("Account ID :",fetched_data[ind].accountid)
+        console.log("****** Num of Transactions:",fetched_data[ind].numoftransactions)
+        console.log("****** Maximum Value from the Transactions:",fetched_data[ind].max_val)
+        console.log("****** Total Value From Credit:",fetched_data[ind].totalval_credit)
+        console.log("****** Total Value From Debit:",fetched_data[ind].totalval_debit)
+    }
     
 }
 
@@ -152,10 +147,6 @@ async function authenticateApp(url = '') {
     return response.json(); // parses JSON response into native JavaScript objects
   }
 
-// authenticateApp(`${BASE_URL}/application`)
-//   .then(data => {
-//   console.log(data); // JSON data parsed by `data.json()` call
-//   });
 
 
 
@@ -179,11 +170,7 @@ async function startUserAutherize(url = '', data = {}) {
   }
  
 
-// startUserAutherize(`${BASE_URL}/auth`,  startAuthorizationBody)
-// .then(data => {
-// console.log(data); // JSON data parsed by `data.json()` call
-// });
-
+// Autherize User Session. 
 async function autherizeUserSess(url = '', data = {}) {
 
     const response = await fetch(url, {
@@ -203,11 +190,6 @@ async function autherizeUserSess(url = '', data = {}) {
   }
  
 
-//   autherizeUserSess(`${BASE_URL}/sessions`,  {"code":"1fcf9394-4b13-46c6-9726-704a5fcc7deb"})
-// .then(data => {
-// console.log(data); // JSON data parsed by `data.json()` call
-// });
-
 
 // Get Session Data
 async function getSessionData(url = '') {
@@ -223,10 +205,6 @@ async function getSessionData(url = '') {
     return response.json(); // parses JSON response into native JavaScript objects
   }
 
-// getSessionData(`${BASE_URL}/sessions/a8dafe9e-a374-4f01-b250-13e2629cb57e`)
-//   .then(data => {
-//   console.log(data.accounts); // JSON data parsed by `data.json()` call
-//   });
 
 // Get Account Transactions
   async function getAccountTransactions(url = '') {
@@ -242,77 +220,74 @@ async function getSessionData(url = '') {
     return response.json(); // parses JSON response into native JavaScript objects
   }
   
-getAccountTransactions(`${BASE_URL}/accounts/152284da-61bd-4226-86b9-aca93f2da596/transactions`)
-  .then(data => {
-   
 
 
-    var transaction_data = data['transactions'].map(function (obj) {
-            if (obj.transaction_date<=today && obj.transaction_date>=priorDate ){
-                
-                return obj.transaction_amount.amount
-            }
-        
-      });
+// Generate Summary Function
+ function  generateSummary(data,accountid){
+
     
-    console.log(Math.max(...transaction_data))
-    console.log("NUM: : ", _.size(transaction_data))
+    var transaction_data = data['transactions'].map(function (obj) {
+        if (obj.transaction_date<=today && obj.transaction_date>=priorDate ){
+            
+            return obj.transaction_amount.amount
+        }
+    
+    });
+    if (_.size(transaction_data)===0){
+        fetched_data.push({
+            accountid:accountid,
+            numoftransactions:0,
+            max_val: 0,
+            totalval_credit:0,
+            totalval_debit:0
+        })
+        return false;
+    }
+
+
     var numoftransactions=_.size(transaction_data)
     var max_val= Math.max(...transaction_data)
-
-
     var debit=[];var credit=[]
-   
-
-   
-
     data['transactions'].filter(function (obj) {
         if (obj.credit_debit_indicator === "DBIT" && (obj.transaction_date<=today && obj.transaction_date>=priorDate )){
-                // console.log("Debit",obj.transaction_amount.amount)
                 debit.push(parseFloat(obj.transaction_amount.amount))
             }
         else if (obj.credit_debit_indicator === "CRDT" && (obj.transaction_date<=today && obj.transaction_date>=priorDate )) {
-            // console.log("credit",obj.transaction_amount)
             credit.push(parseFloat(obj.transaction_amount.amount))
         }
         else {
             console.log("No Indicator Info");
         }
     });
-    // console.log("Debit list",debit)
-    // console.log("credit list ",credit)
+  
     const reducer = (accumulator, curr) => accumulator + curr;
-    var totalvaldebit=debit.reduce(reducer)
-    var totalval_crdit=credit.reduce(reducer)
-
-    // console.log(debit.reduce(reducer));
-    // console.log(credit.reduce(reducer));
-
-
-    fetched_data
+    if (debit.length!==0){
+        var totalvaldebit=debit.reduce(reducer)
+    }
+    else{
+        totalvaldebit=0
+    }
+    if (credit.length!==0){
+        var totalval_crdit=credit.reduce(reducer)
+    }
+    else{
+        totalval_crdit=0
+    }
+  
     fetched_data.push({
-        accountid:"152284da-61bd-4226-86b9-aca93f2da596",
+        accountid:accountid,
         numoftransactions:numoftransactions,
         max_val: max_val,
         totalval_credit:totalval_crdit,
         totalval_debit:totalvaldebit
     })
-    fetched_data.push({
-        accountid:"152284da-61bd-4226-86b9-aca93f2da596",
-        numoftransactions:numoftransactions,
-        max_val: max_val,
-        totalval_credit:totalval_crdit,
-        totalval_debit:totalvaldebit
-    })
 
-   console.log(fetched_data)
-  });
+  }
 
 
 
 
-
-
+// Input function for command line
 function input(query) {
     const rl = readline.createInterface({
         input: process.stdin,
@@ -324,7 +299,7 @@ function input(query) {
         resolve(ans);
     }))
   }
-
+// Fetching Code from The redirect url
 function getCode(url) {
     const query = url.split("?")[1];
     for (const pair of query.split("&")) {
@@ -336,10 +311,10 @@ function getCode(url) {
   }
   
 
-// (async () => {
-//     try{
-//       await main()
-//     } catch (error) {
-//       console.log(`Unexpected error happened: ${error}`)
-//     }
-//   })();
+(async () => {
+    try{
+      await main()
+    } catch (error) {
+      console.log(`Unexpected error happened: ${error}`)
+    }
+  })();
